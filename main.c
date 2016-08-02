@@ -40,7 +40,7 @@
 #pragma config JTAGEN = OFF              // JTAG Port Enable (JTAG port is enabled)
 
 #define LICZBA_KROKOW   200
-#define TRIAC_OFF    LATFbits.LATF5 = 0;
+#define TRIAC_OFF       LATFbits.LATF5 = 0;
 #define TRIAC_ON        LATFbits.LATF5 = 1;
 
 #define bitOneMax       1700
@@ -51,22 +51,190 @@
 #define frame_end       2
 #define frame_err       3
 
+#define TURN_OFF    0
+#define TURN_ON     1
+#define SPEED_ONE   40
+#define SPEED_TWO   100
+#define SPEED_THREE 200
 
-volatile unsigned char frameStatus, IrPulseCoun, ir_licznik;
-volatile unsigned int uiCaptureValueTMR[48],uiCaptureValueICP[48];
+volatile unsigned char frameStatus, IrPulseCoun, ir_licznik, uchPowerON;
 volatile unsigned int uiPreData, IrData;
 volatile unsigned long ulKeyCodeTmp, ulKeyCode;
-volatile unsigned int uiTimer1, uiTimer2, uiTimer3, uiTriac, uiKroki, uiNastawa;
+volatile unsigned int uiPowerSWDelay, uiSleepSWDelay, uiSpeedSWDelay, uiIRDelay,uiTriac, uiKroki, uiNastawa;
+
+void systemInit(void);
+void turnOffAllDiode(void);
 /*
  * 
  */
 int main(void) {
+    systemInit();
+    uiNastawa = 50;
 
-//    CLKDIVbits.RCDIV = 1;
+    while (1){
+        if (!uiIRDelay){
+            if (ulKeyCode){
+                switch(ulKeyCode){
+                    case 0x0D00BCB1:
+                        if (!uchPowerON) {
+                            uchPowerON = TURN_ON;
+                            uiNastawa = SPEED_ONE;
+                            LATBbits.LATB14 = 1;
+                            LATBbits.LATB2 = 1;
+                        } else {
+                            uchPowerON = TURN_OFF;
+                            uiNastawa = 0;
+                            turnOffAllDiode();
+                        }
+                        ulKeyCode = 0;
+                        uiIRDelay = 5000;
+                        break;
+                }
+            }
+            if (uiPreData == 0x4014){
+                uiPreData = 0;
+                ulKeyCode = ulKeyCodeTmp;
+            }
+        } else uiPreData = 0;
+    }
+}
+
+void __attribute__((interrupt,no_auto_psv)) _INT1Interrupt(void) // PowerSW
+{
+    if (!uiPowerSWDelay){
+        if (!PORTDbits.RD1){
+            if (!uchPowerON){
+                uchPowerON = TURN_ON;
+                uiNastawa = SPEED_ONE;
+                LATBbits.LATB14 = 1;
+                LATBbits.LATB2 = 1;
+            } else {
+                uchPowerON = TURN_OFF;
+                uiNastawa = 0;
+                turnOffAllDiode();
+            }
+        }
+    }
+    uiPowerSWDelay = 2000; // 100 ms Delay
+    IFS1bits.INT1IF = 0; //wyczy?? flag? przerwania
+}
+
+void __attribute__((interrupt,no_auto_psv)) _INT2Interrupt(void)    // SpeedSW
+{
+    if (!uiSpeedSWDelay){
+        if (!PORTBbits.RB1){
+            if (uchPowerON == TURN_ON){
+                switch (uiNastawa){
+                    case SPEED_ONE:
+                        uiNastawa = SPEED_TWO;
+                        LATBbits.LATB2 = 1;
+                        LATBbits.LATB4 = 1;
+                        LATBbits.LATB5 = 0;
+                        break;
+                    case SPEED_TWO:
+                        uiNastawa = SPEED_THREE;
+                        LATBbits.LATB2 = 1;
+                        LATBbits.LATB4 = 1;
+                        LATBbits.LATB5 = 1;
+                        break;
+                    default:
+                        uiNastawa = SPEED_ONE;
+                        LATBbits.LATB2 = 1;
+                        LATBbits.LATB4 = 0;
+                        LATBbits.LATB5 = 0;
+                        break;
+                }
+            }
+        }
+    }
+    uiSpeedSWDelay = 2000;   // 100 ms Delay
+    IFS1bits.INT2IF = 0; //wyczy?? flag? przerwania
+}
+
+void __attribute__((interrupt,no_auto_psv)) _INT3Interrupt(void)    // SleepSW
+{
+    if (!uiSleepSWDelay){
+        if (!PORTBbits.RB15){
+            
+        }
+    }
+    uiSleepSWDelay = 2000;   // 100 ms Delay
+    IFS3bits.INT3IF = 0; //wyczy?? flag? przerwania
+}
+
+void __attribute__((interrupt,no_auto_psv)) _INT4Interrupt(void)
+{
+    TRIAC_OFF;     // wy??czenie triaka
+    uiTriac = uiNastawa;
+    uiKroki = LICZBA_KROKOW;
+    IFS3bits.INT4IF = 0; //wyczy?? flag? przerwania
+}
+
+void __attribute__((interrupt,no_auto_psv)) _T3Interrupt(void)
+{
+    if (uiPowerSWDelay) --uiPowerSWDelay;
+    if (uiSpeedSWDelay) --uiSpeedSWDelay;
+    if (uiSleepSWDelay) --uiSleepSWDelay;
+    if (uiIRDelay) --uiIRDelay;
+    if (uiKroki == uiTriac) TRIAC_ON;
+    --uiKroki;
+    IFS0bits.T3IF = 0; //wyczy?? flag? przerwania
+}
+void __attribute__((interrupt,no_auto_psv)) _IC1Interrupt(void) {
+
+    unsigned int Tmp = TMR1>>1;
+    TMR1 = 0;
+//    unsigned int Tmp = IC1TMR>>1;
+//    IC1CON2bits.TRIGSTAT = 0;
+    if (Tmp > 1700) ir_licznik = 0;
+    if (ir_licznik > 1) frameStatus = frame_ok;
+    if (ir_licznik == 1) ++ir_licznik;
+//    IC1CON2bits.TRIGSTAT = 1;
+    if (ir_licznik == 0) {
+        IrData = 0;
+        IrPulseCoun = 0;
+        ++ir_licznik;
+        frameStatus = frame_end;
+    }
+
+    if (frameStatus == frame_ok) {
+        if (Tmp < bitZeroMin) frameStatus = frame_restart;
+        if (Tmp > bitOneMax) frameStatus = frame_restart;
+
+        if (frameStatus == frame_ok) {
+            if (ir_licznik > 1) {
+                if ((ir_licznik % 2) == 0) {
+                    IrData = IrData << 1;
+                    if (Tmp > 1000) ++IrData;
+//                    uiCaptureValue[IrPulseCoun] = Tmp;
+                    IrPulseCoun++;
+                    if (IrPulseCoun == 16) {
+                        uiPreData = IrData;
+                    }
+                    if (IrPulseCoun == 32) {
+                        ulKeyCodeTmp = IrData;
+                    }
+                    if (IrPulseCoun == 48) {
+                        ulKeyCodeTmp <<= 16;
+                        ulKeyCodeTmp |= IrData;
+                        uiPreData |= 0x0010;
+                        frameStatus = frame_restart;
+                    }
+                }
+            }
+            ir_licznik++;
+        }
+    }
+    if (frameStatus == frame_restart) {
+        ir_licznik = 0;
+    }
+    IFS0bits.IC1IF = 0;
+}
+void systemInit(void){
+    //    CLKDIVbits.RCDIV = 1;
     AD1PCFGL = 0xFFFF; // all as digital
     TRISB = ~(0b0100000011110101);  // diody
     TRISFbits.TRISF5 = 0;   // triac kierunek wyjsciowy
-
 
     //////     INT1    //////
     RPINR0bits.INT1R = 24;  // RP24
@@ -110,7 +278,7 @@ int main(void) {
     //////// Input Capture ////////
     RPINR7bits.IC1R = 16;       // RP16
     IC1CON2bits.SYNCSEL = 0;    // no synchronization
-    while (IC1CON1bits.ICBNE) uiCaptureValueICP[0] = IC1BUF;   // cleared buff
+//    while (IC1CON1bits.ICBNE) uiCaptureValueICP[0] = IC1BUF;   // cleared buff
     IC1CON1bits.ICM = 1;        // capture every edge
     IC1CON1bits.ICTSEL = 4;     // Timer1 as select timer
 //    IC1CON1bits.ICI = 0;        // interrupt on every fourth capture event //// is not used
@@ -120,106 +288,14 @@ int main(void) {
     IEC0bits.IC1IE = 1;         // turn on interrupt
     IFS0bits.IC1IF = 0;
     ///////////////////////////////
-
-//    TRISB |= ~(0b0100000011110101);
-    while (1){
-        if (uiTimer1) LATBbits.LATB14 = 1;
-        else LATBbits.LATB14 = 0;
-        if (uiTimer2) LATBbits.LATB5 = 1;
-        else LATBbits.LATB5 = 0;
-        if (uiTimer3) LATBbits.LATB2 = 1;
-        else LATBbits.LATB2 = 0;
-//
-//        __delay_ms(1);
-//        LATFbits.LATF5 ^= 1;
-
-    };
-
+    turnOffAllDiode();
 }
-
-void __attribute__((interrupt,no_auto_psv)) _IC1Interrupt(void) {
-
-    unsigned int Tmp = TMR1>>1;
-    TMR1 = 0;
-//    unsigned int Tmp = IC1TMR>>1;
-//    IC1CON2bits.TRIGSTAT = 0;
-    if (Tmp > 1700) ir_licznik = 0;
-    if (ir_licznik > 1) frameStatus = frame_ok;
-    if (ir_licznik == 1) ++ir_licznik;
-//    IC1CON2bits.TRIGSTAT = 1;
-    if (ir_licznik == 0) {
-        IrData = 0;
-        IrPulseCoun = 0;
-        ++ir_licznik;
-        frameStatus = frame_end;
-    }
-
-    if (frameStatus == frame_ok) {
-        if (Tmp < bitZeroMin) frameStatus = frame_restart;
-        if (Tmp > bitOneMax) frameStatus = frame_restart;
-
-        if (frameStatus == frame_ok) {
-            if (ir_licznik > 1) {
-                if ((ir_licznik % 2) == 0) {
-                    IrData = IrData << 1;
-                    if (Tmp > 1000) ++IrData;
-//                    uiCaptureValue[IrPulseCoun] = Tmp;
-                    IrPulseCoun++;
-                    if (IrPulseCoun == 16) {
-                        uiPreData = IrData;
-                    }
-                    if (IrPulseCoun == 32) {
-                        ulKeyCodeTmp = IrData;
-                    }
-                    if (IrPulseCoun == 48) {
-                        ulKeyCodeTmp <<= 16;
-                        ulKeyCodeTmp |= IrData;
-                        frameStatus = frame_restart;
-                    }
-                }
-            }
-            ir_licznik++;
-        }
-    }
-    if (frameStatus == frame_restart) {
-        ir_licznik = 0;
-    }
-    IFS0bits.IC1IF = 0;
-}
-
-void __attribute__((interrupt,no_auto_psv)) _INT1Interrupt(void)
-{
-    uiTimer1 = 1000;
-    IFS1bits.INT1IF = 0; //wyczy?? flag? przerwania
-}
-
-void __attribute__((interrupt,no_auto_psv)) _INT2Interrupt(void)
-{
-    uiTimer2 = 1000;
-    IFS1bits.INT2IF = 0; //wyczy?? flag? przerwania
-}
-
-void __attribute__((interrupt,no_auto_psv)) _INT3Interrupt(void)
-{
-    uiTimer3 = 1000;
-    IFS3bits.INT3IF = 0; //wyczy?? flag? przerwania
-}
-
-void __attribute__((interrupt,no_auto_psv)) _INT4Interrupt(void)
-{
-    TRIAC_OFF;     // wy??czenie triaka
-    LATBbits.LATB14 = 1;
-    uiTriac = uiNastawa;
-    uiKroki = LICZBA_KROKOW;
-    IFS3bits.INT4IF = 0; //wyczy?? flag? przerwania
-}
-
-void __attribute__((interrupt,no_auto_psv)) _T3Interrupt(void)
-{
-    if (uiTimer1) --uiTimer1;
-    if (uiTimer2) --uiTimer2;
-    if (uiTimer3) --uiTimer3;
-    if (uiKroki == uiTriac)    TRIAC_ON;
-    --uiKroki;
-    IFS0bits.T3IF = 0; //wyczy?? flag? przerwania
+void turnOffAllDiode(void){
+    LATBbits.LATB14 = 0;    // power on diode
+    LATBbits.LATB2 = 0;     // first speed diode
+    LATBbits.LATB4 = 0;    // second speed diode
+    LATBbits.LATB5 = 0;    // third speed diode
+    LATBbits.LATB7 = 0;    // first sleep diode
+    LATBbits.LATB6 = 0;    // second sleep diode
+    LATBbits.LATB0 = 0;    // third sleep diode
 }
