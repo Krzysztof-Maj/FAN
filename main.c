@@ -110,11 +110,13 @@ int main(void) {
     //////// Input Capture ////////
     RPINR7bits.IC1R = 16;       // RP16
     IC1CON2bits.SYNCSEL = 0;    // no synchronization
-//    while (IC1CON1bits.ICBNE) uiCaptureValue[0] = IC1BUF;   // cleared buff
+    while (IC1CON1bits.ICBNE) uiCaptureValueICP[0] = IC1BUF;   // cleared buff
     IC1CON1bits.ICM = 1;        // capture every edge
-//    IC1CON1bits.ICM = 2;
     IC1CON1bits.ICTSEL = 4;     // Timer1 as select timer
-    IC1CON1bits.ICI = 0;        // interrupt on every fourth capture event
+//    IC1CON1bits.ICI = 0;        // interrupt on every fourth capture event //// is not used
+    IC1CON2bits.SYNCSEL = 0;   // synchronization ICP1
+    IC1CON2bits.ICTRIG = 1;
+    IC1CON2bits.TRIGSTAT = 1;
     IEC0bits.IC1IE = 1;         // turn on interrupt
     IFS0bits.IC1IF = 0;
     ///////////////////////////////
@@ -135,137 +137,53 @@ int main(void) {
 
 }
 
-void __attribute__((interrupt,no_auto_psv)) _IC1Interrupt(void)
-{
-//    unsigned int i;
-//    for (i=0; IC1CON1bits.ICBNE; ++i) uiCaptureValue[i] = IC1BUF;
-//
-//    if (uchErrCheck == 2)
-//    {
-//        for (i = 3; i>0 ; --i) {
-//            uiCaptureValue[i] -= uiCaptureValue[i-1];
-//        }
-//        for (i=0; i < 4; ++i){
-//            if (uiCaptureValue[i] > 2000) ulKeyCodeTmp = (ulKeyCodeTmp << 1) | 0x01;
-//            else ulKeyCodeTmp <<= 1;
-//        }
-//        uchCount +=4;
-//        if (uchCount == 32)
-//        {
-//            uchCount = 0;
-//            uchErrCheck = 3;
-//            IC1CON1bits.ICI = 1;        // interrupt on every fourth capture event
-//        }
-//        else if (uchCount > 32)
-//        {
-//            uchCount = 0;
-//            uchErrCheck = 0;
-//            IC1CON1bits.ICI = 1;        // interrupt on every fourth capture event
-//        }
-//        TMR1 = 0;
-//    }
-//    if (uchErrCheck == 1)
-//    {
-//        for (i = 3; i>0 ; --i) {
-//            uiCaptureValue[i] -= uiCaptureValue[i-1];
-//        }
-//        for (i=0; i < 4; ++i){
-//            if (uiCaptureValue[i] > 2000) uiPreData = (uiPreData << 1) | 0x01;
-//            else uiPreData <<= 1;
-//        }
-//        if (uiPreData == 0x4004){
-//            uiPreData = 0;
-//            uchErrCheck = 2;
-//            uchCount = 0;
-//        }
-//        if (uchCount > 4){
-//            uiPreData = 0;
-//            uchErrCheck = 0;
-//            IC1CON1bits.ICI = 1;        // interrupt on every fourth capture event
-//        }
-//        ++uchCount;
-//        TMR1 = 0;
-//    }
-//
-//    if (uchErrCheck == 0){
-//        if (uiCaptureValue[0] < uiCaptureValue[1]){
-//            uiCaptureValue[1] -= uiCaptureValue[0];
-//            if (uiCaptureValue[1] > (Header - ErrTime)){
-//                uchErrCheck = 1;
-//                IC1CON1bits.ICI = 3;        // interrupt on every fourth capture event
-//                TMR1 = 0;
-//            }
-//        }
-//        else {
-//            uiCaptureValue[1] += 0xFFFF - uiCaptureValue[0];
-//            if (uiCaptureValue[1] > (Header - ErrTime)){
-//                uchErrCheck = 1;
-//                IC1CON1bits.ICI = 3;        // interrupt on every fourth capture event
-//                TMR1 = 0;
-//            }
-//        }
-//    }
+void __attribute__((interrupt,no_auto_psv)) _IC1Interrupt(void) {
 
-//    unsigned int Tmp = IC1TMR>>1;
     unsigned int Tmp = TMR1>>1;
     TMR1 = 0;
-//    uiCaptureValueTMR[ir_licznik] = Tmp;
-//    uiCaptureValueICP[ir_licznik] = IC1TMR>>1;
-//    ++ir_licznik;
-//    if (ir_licznik == 48){
-//        ir_licznik = 0;
-//    }
-
-    if (Tmp > 1600) ir_licznik = 0;
-//    if (ir_licznik > 2) frameStatus = frame_ok;
-//    if (ir_licznik == 1 || ir_licznik == 2) ++ir_licznik;
+//    unsigned int Tmp = IC1TMR>>1;
+//    IC1CON2bits.TRIGSTAT = 0;
+    if (Tmp > 1700) ir_licznik = 0;
     if (ir_licznik > 1) frameStatus = frame_ok;
-    if (ir_licznik == 1 ) ++ir_licznik;
-    if (ir_licznik == 0){
+    if (ir_licznik == 1) ++ir_licznik;
+//    IC1CON2bits.TRIGSTAT = 1;
+    if (ir_licznik == 0) {
         IrData = 0;
         IrPulseCoun = 0;
         ++ir_licznik;
         frameStatus = frame_end;
     }
 
-    	if (frameStatus == frame_ok)
-	{
-		if (Tmp < bitZeroMin) frameStatus = frame_restart;
-		if (Tmp > bitOneMax) frameStatus = frame_restart;
+    if (frameStatus == frame_ok) {
+        if (Tmp < bitZeroMin) frameStatus = frame_restart;
+        if (Tmp > bitOneMax) frameStatus = frame_restart;
 
-		if (frameStatus == frame_ok)
-		{
-			if (ir_licznik > 1)
-			{
-				if ((ir_licznik % 2) == 0)
-				{
-					IrData = IrData << 1;
-					if (Tmp > 1000) ++IrData;
-//                                        uiCaptureValue[IrPulseCoun] = Tmp;
-					IrPulseCoun++;
-					if (IrPulseCoun == 16)
-					{
-            					uiPreData = IrData;
-					}
-					if (IrPulseCoun == 32)
-					{
-        					ulKeyCodeTmp = IrData;
-					}
-					if (IrPulseCoun == 48)
-					{
-                                            ulKeyCodeTmp <<= 16;
-                                            ulKeyCodeTmp |= IrData;
-                                            frameStatus = frame_restart;
-					}
-				}
-			}
-			ir_licznik++;
-		}
-	}
-	if (frameStatus == frame_restart)
-	{
-		ir_licznik = 0;
-	}
+        if (frameStatus == frame_ok) {
+            if (ir_licznik > 1) {
+                if ((ir_licznik % 2) == 0) {
+                    IrData = IrData << 1;
+                    if (Tmp > 1000) ++IrData;
+//                    uiCaptureValue[IrPulseCoun] = Tmp;
+                    IrPulseCoun++;
+                    if (IrPulseCoun == 16) {
+                        uiPreData = IrData;
+                    }
+                    if (IrPulseCoun == 32) {
+                        ulKeyCodeTmp = IrData;
+                    }
+                    if (IrPulseCoun == 48) {
+                        ulKeyCodeTmp <<= 16;
+                        ulKeyCodeTmp |= IrData;
+                        frameStatus = frame_restart;
+                    }
+                }
+            }
+            ir_licznik++;
+        }
+    }
+    if (frameStatus == frame_restart) {
+        ir_licznik = 0;
+    }
     IFS0bits.IC1IF = 0;
 }
 
