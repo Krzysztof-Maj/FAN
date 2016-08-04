@@ -89,6 +89,27 @@ int main(void) {
                         ulKeyCode = 0;
                         uiIRDelay = 5000;
                         break;
+                    case 0x0D00111C:
+                        if (!uchPowerON) {
+                            uchPowerON = TURN_ON;
+                            uiNastawa = SPEED_ONE;
+                            LATBbits.LATB14 = 1;
+                            LATBbits.LATB2 = 1;
+                        } else {
+                            uiNastawa += 10;
+                            if (uiNastawa > 200) uiNastawa = 200;
+                        }
+                        ulKeyCode = 0;
+                        uiIRDelay = 2500;
+                        break;
+                    case 0x0D00E1EC:
+                        if (uchPowerON) {
+                            uiNastawa -= 10;
+                            if (uiNastawa < 10) uiNastawa = 10;
+                        }
+                        ulKeyCode = 0;
+                        uiIRDelay = 2500;
+                        break;
                 }
             }
             if (uiPreData == 0x4014){
@@ -251,7 +272,7 @@ void systemInit(void){
     //////     INT4    //////
     RPINR2bits.INT4R = 10;  // RP10
     INTCON2bits.INT4EP = 0; // positive edge
-    IPC13bits.INT4IP = 5;   // priorytet przerwania, domyslnie jest 4
+//    IPC13bits.INT4IP = 5;   // priorytet przerwania, domyslnie jest 4
     IEC3bits.INT4IE = 1;
     //////////////////////////
 
