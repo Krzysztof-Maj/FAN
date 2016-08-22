@@ -11,118 +11,78 @@
 #include <Rtcc.h>
 
 #include <xc.h>
+#include"main.h"
+#define DEBUG__
 
-// CONFIG3
-#pragma config WPFP = WPFP511           // Write Protection Flash Page Segment Boundary (Highest Page (same as page 170))
-#pragma config WPDIS = WPDIS            // Segment Write Protection Disable bit (Segmented code protection disabled)
-#pragma config WPCFG = WPCFGDIS         // Configuration Word Code Page Protection Select bit (Last page(at the top of program memory) and Flash configuration words are not protected)
-#pragma config WPEND = WPENDMEM         // Segment Write Protection End Page Select bit (Write Protect from WPFP to the last page of memory)
 
-// CONFIG2
-#pragma config POSCMOD = NONE           // Primary Oscillator Select (Primary oscillator disabled)
-#pragma config DISUVREG = OFF           // Internal USB 3.3V Regulator Disable bit (Regulator is disabled)
-#pragma config IOL1WAY = ON             // IOLOCK One-Way Set Enable bit (Write RP Registers Once)
-#pragma config OSCIOFNC = OFF           // Primary Oscillator Output Function (OSCO functions as CLKO (FOSC/2))
-#pragma config FCKSM = CSDCMD           // Clock Switching and Monitor (Both Clock Switching and Fail-safe Clock Monitor are disabled)
-#pragma config FNOSC = FRCPLL           // Oscillator Select (Fast RC oscillator with Postscaler and PLL module (FRCPLL))
-#pragma config PLL_96MHZ = ON           // 96MHz PLL Disable (Enabled)
-#pragma config PLLDIV = NODIV           // USB 96 MHz PLL Prescaler Select bits (Oscillator input used directly (4MHz input))
-#pragma config IESO = ON                // Internal External Switch Over Mode (IESO mode (Two-speed start-up) enabled)
-
-// CONFIG1
-#pragma config WDTPS = PS32768          // Watchdog Timer Postscaler (1:32,768)
-#pragma config FWPSA = PR128            // WDT Prescaler (Prescaler ratio of 1:128)
-#pragma config WINDIS = OFF             // Watchdog Timer Window (Standard Watchdog Timer enabled,(Windowed-mode is disabled))
-#pragma config FWDTEN = OFF             // Watchdog Timer Enable (Watchdog Timer is disabled)
-#pragma config ICS = PGx1               // Comm Channel Select (Emulator functions are shared with PGEC1/PGED1)
-#pragma config GWRP = OFF               // General Code Segment Write Protect (Writes to program memory are allowed)
-#pragma config GCP = OFF                // General Code Segment Code Protect (Code protection is disabled)
-#pragma config JTAGEN = OFF              // JTAG Port Enable (JTAG port is enabled)
-
-#define LICZBA_KROKOW   200
-#define TRIAC_OFF       LATFbits.LATF5 = 0;
-#define TRIAC_ON        LATFbits.LATF5 = 1;
-
-#define bitOneMax       1700
-#define bitZeroMin      370
-
-#define frame_restart   0
-#define frame_ok        1
-#define frame_end       2
-#define frame_err       3
-
-#define TURN_OFF    0
-#define TURN_ON     1
-#define SPEED_ONE   40
-#define SPEED_TWO   100
-#define SPEED_THREE 200
-
-volatile unsigned char frameStatus, IrPulseCoun, ir_licznik, uchPowerON;
-volatile unsigned int uiPreData, IrData;
-volatile unsigned long ulKeyCodeTmp, ulKeyCode;
-volatile unsigned int uiPowerSWDelay, uiSleepSWDelay, uiSpeedSWDelay, uiIRDelay,uiTriac, uiKroki, uiNastawa;
 
 void systemInit(void);
 void turnOffAllDiode(void);
-/*
- * 
- */
+void key_SPEED();
+void update_Diode();
+void IR_function();
+
 int main(void) {
     systemInit();
-    uiNastawa = 50;
 
-    while (1){
-        if (!uiIRDelay){
-            if (ulKeyCode){
-                switch(ulKeyCode){
-                    case 0x0D00BCB1:
-                        if (!uchPowerON) {
-                            uchPowerON = TURN_ON;
-                            uiNastawa = SPEED_ONE;
-                            LATBbits.LATB14 = 1;
-                            LATBbits.LATB2 = 1;
-                        } else {
-                            uchPowerON = TURN_OFF;
-                            uiNastawa = 0;
-                            turnOffAllDiode();
-                        }
-                        ulKeyCode = 0;
-                        uiIRDelay = 5000;
-                        break;
-                    case 0x0D00111C:
-                        if (!uchPowerON) {
-                            uchPowerON = TURN_ON;
-                            uiNastawa = SPEED_ONE;
-                            LATBbits.LATB14 = 1;
-                            LATBbits.LATB2 = 1;
-                        } else {
-                            uiNastawa += 10;
-                            if (uiNastawa > 200) uiNastawa = 200;
-                        }
-                        ulKeyCode = 0;
-                        uiIRDelay = 2500;
-                        break;
-                    case 0x0D00E1EC:
-                        if (uchPowerON) {
-                            uiNastawa -= 10;
-                            if (uiNastawa < 10) uiNastawa = 10;
-                        }
-                        ulKeyCode = 0;
-                        uiIRDelay = 2500;
-                        break;
-                }
-            }
-            if (uiPreData == 0x4014){
-                uiPreData = 0;
-                ulKeyCode = ulKeyCodeTmp;
-            }
-        } else uiPreData = 0;
+    while (1) {
+        IR_function();
+        update_Diode();
     }
+}
+
+void IR_function() {
+    if (!uiIRDelay) {
+        if (ulKeyCode) {
+            switch (ulKeyCode) {
+                case 0x0D00BCB1:
+                    if (!uchPowerON) {
+                        uchPowerON = TURN_ON;
+                        uiNastawa = SPEED_ONE;
+                        LATBbits.LATB14 = 1;
+                        LATBbits.LATB2 = 1;
+                    } else {
+                        uchPowerON = TURN_OFF;
+                        uiNastawa = 0;
+                        turnOffAllDiode();
+                    }
+                    ulKeyCode = 0;
+                    uiIRDelay = 5000;
+                    break;
+                case 0x0D00111C:
+                    if (!uchPowerON) {
+                        uchPowerON = TURN_ON;
+                        uiNastawa = SPEED_ONE;
+                        LATBbits.LATB14 = 1;
+                        LATBbits.LATB2 = 1;
+                    } else {
+                        uiNastawa += 10;
+                        if (uiNastawa > 200) uiNastawa = 200;
+                    }
+                    ulKeyCode = 0;
+                    uiIRDelay = 2500;
+                    break;
+                case 0x0D00E1EC:
+                    if (uchPowerON) {
+                        uiNastawa -= 10;
+                        if (uiNastawa < 10) uiNastawa = 10;
+                    }
+                    ulKeyCode = 0;
+                    uiIRDelay = 2500;
+                    break;
+            }
+        }
+        if (uiPreData == 0x4014) {
+            uiPreData = 0;
+            ulKeyCode = ulKeyCodeTmp;
+        }
+    } else uiPreData &= ~0x0010;
 }
 
 void __attribute__((interrupt,no_auto_psv)) _INT1Interrupt(void) // PowerSW
 {
-    if (!uiPowerSWDelay){
+    uiSWDelay = 100;
+    while (uiSWDelay);
         if (!PORTDbits.RD1){
             if (!uchPowerON){
                 uchPowerON = TURN_ON;
@@ -135,51 +95,24 @@ void __attribute__((interrupt,no_auto_psv)) _INT1Interrupt(void) // PowerSW
                 turnOffAllDiode();
             }
         }
-    }
-    uiPowerSWDelay = 2000; // 100 ms Delay
     IFS1bits.INT1IF = 0; //wyczy?? flag? przerwania
 }
-
+#ifndef DEBUG__
 void __attribute__((interrupt,no_auto_psv)) _INT2Interrupt(void)    // SpeedSW
 {
-    if (!uiSpeedSWDelay){
-        if (!PORTBbits.RB1){
-            if (uchPowerON == TURN_ON){
-                switch (uiNastawa){
-                    case SPEED_ONE:
-                        uiNastawa = SPEED_TWO;
-                        LATBbits.LATB2 = 1;
-                        LATBbits.LATB4 = 1;
-                        LATBbits.LATB5 = 0;
-                        break;
-                    case SPEED_TWO:
-                        uiNastawa = SPEED_THREE;
-                        LATBbits.LATB2 = 1;
-                        LATBbits.LATB4 = 1;
-                        LATBbits.LATB5 = 1;
-                        break;
-                    default:
-                        uiNastawa = SPEED_ONE;
-                        LATBbits.LATB2 = 1;
-                        LATBbits.LATB4 = 0;
-                        LATBbits.LATB5 = 0;
-                        break;
-                }
-            }
-        }
-    }
-    uiSpeedSWDelay = 2000;   // 100 ms Delay
+    uiSWDelay = 20;
+    while (uiSWDelay);
+    if (!PORTBbits.RB1) key_SPEED();
     IFS1bits.INT2IF = 0; //wyczy?? flag? przerwania
 }
-
+#endif
 void __attribute__((interrupt,no_auto_psv)) _INT3Interrupt(void)    // SleepSW
 {
-    if (!uiSleepSWDelay){
-        if (!PORTBbits.RB15){
-            
-        }
+    uiSWDelay = 100;
+    while (uiSWDelay);
+    if (!PORTBbits.RB15) {
+        key_SPEED();
     }
-    uiSleepSWDelay = 2000;   // 100 ms Delay
     IFS3bits.INT3IF = 0; //wyczy?? flag? przerwania
 }
 
@@ -193,10 +126,9 @@ void __attribute__((interrupt,no_auto_psv)) _INT4Interrupt(void)
 
 void __attribute__((interrupt,no_auto_psv)) _T3Interrupt(void)
 {
-    if (uiPowerSWDelay) --uiPowerSWDelay;
-    if (uiSpeedSWDelay) --uiSpeedSWDelay;
-    if (uiSleepSWDelay) --uiSleepSWDelay;
+    if (uiSWDelay) --uiSWDelay;
     if (uiIRDelay) --uiIRDelay;
+    if (uiLedUpdate) --uiLedUpdate;
     if (uiKroki == uiTriac) TRIAC_ON;
     --uiKroki;
     IFS0bits.T3IF = 0; //wyczy?? flag? przerwania
@@ -260,14 +192,21 @@ void systemInit(void){
     //////     INT1    //////
     RPINR0bits.INT1R = 24;  // RP24
     INTCON2bits.INT1EP = 1;
+    IPC5bits.INT1IP = 3;
+    IFS1bits.INT1IF = 0;
     IEC1bits.INT1IE = 1;
+#ifndef DEBUG__
     //////     INT2    //////
     RPINR1bits.INT2R = 1;   // RP1
     INTCON2bits.INT2EP = 1;
     IEC1bits.INT2IE = 1;
+#endif
     //////     INT3    //////
     RPINR1bits.INT3R = 29;  // RP29
     INTCON2bits.INT3EP = 1; // negative edge
+    IPC13bits.INT3IP = 3;
+    IFS3bits.INT3IF = 0;
+//    INTCON1bits.NSTDIS = 1;
     IEC3bits.INT3IE = 1;    // enable
     //////     INT4    //////
     RPINR2bits.INT4R = 10;  // RP10
@@ -319,4 +258,58 @@ void turnOffAllDiode(void){
     LATBbits.LATB7 = 0;    // first sleep diode
     LATBbits.LATB6 = 0;    // second sleep diode
     LATBbits.LATB0 = 0;    // third sleep diode
+}
+void key_SPEED() {
+    if (uchPowerON == TURN_ON) {
+        switch (uiNastawa) {
+            case SPEED_ONE:
+                uiNastawa = SPEED_THREE;
+//                LATBbits.LATB2 = 1;
+//                LATBbits.LATB4 = 1;
+//                LATBbits.LATB5 = 0;
+                break;
+            case SPEED_THREE:
+                uiNastawa = SPEED_SEVEN;
+//                LATBbits.LATB2 = 1;
+//                LATBbits.LATB4 = 1;
+//                LATBbits.LATB5 = 1;
+                break;
+            default:
+                uiNastawa = SPEED_ONE;
+//                LATBbits.LATB2 = 1;
+//                LATBbits.LATB4 = 0;
+//                LATBbits.LATB5 = 0;
+                break;
+        }
+    }
+}
+void diode_u(u08 tmp, sdiode *tmpDiode ){
+    if (tmp & 0x01) *(tmpDiode->latch1) |= 1<<tmpDiode->led1_pin;
+    else *(tmpDiode->latch1) &= ~(1<<tmpDiode->led1_pin);
+    if (tmp & 0x02) *(tmpDiode->latch2) |= 1<<tmpDiode->led2_pin;
+    else *(tmpDiode->latch2) &= ~(1<<tmpDiode->led2_pin);
+    if (tmp & 0x04) *(tmpDiode->latch3) |= 1<<tmpDiode->led3_pin;
+    else *(tmpDiode->latch3) &= ~(1<<tmpDiode->led3_pin);
+}
+void diode_speed(void){
+    unsigned int tmp;
+    if (uiNastawa<SPEED_ONE) tmp = 0;
+    else if (uiNastawa<SPEED_TWO) tmp = 1;
+    else if (uiNastawa<SPEED_THREE) tmp = 2;
+    else if (uiNastawa<SPEED_FOUR) tmp = 3;
+    else if (uiNastawa<SPEED_FIFE) tmp = 4;
+    else if (uiNastawa<SPEED_SIX) tmp = 5;
+    else if (uiNastawa<SPEED_SEVEN) tmp = 6;
+    else tmp = 7;
+    diode_u(tmp, &dSpeed);
+}
+void diode_slepp(void){
+    
+}
+void update_Diode(){
+    if (!uiLedUpdate) {
+        diode_speed();
+        diode_slepp();
+        uiLedUpdate = 1000; // 50 ms
+    }
 }
