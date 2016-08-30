@@ -12,6 +12,12 @@
 extern "C" {
 #endif
 
+#define FCY 16000000UL
+#include <stdio.h>
+#include <stdlib.h>
+#include <libpic30.h>
+#include <xc.h>
+
 typedef unsigned char u08;
 typedef unsigned int u16;
 
@@ -44,8 +50,13 @@ typedef unsigned int u16;
 #pragma config JTAGEN = OFF              // JTAG Port Enable (JTAG port is enabled)
 
 #define LICZBA_KROKOW   200
-#define TRIAC_OFF       LATFbits.LATF5 = 0;
-#define TRIAC_ON        LATFbits.LATF5 = 1;
+#define TRIAC_OFF       LATFbits.LATF5 = 0
+#define TRIAC_ON        LATFbits.LATF5 = 1
+#define POWER_LED       LATBbits.LATB14
+
+#define POWER_SW        PORTDbits.RD1
+#define SPEED_SW        PORTBbits.RB1
+#define SLEEP_SW        PORTBbits.RB15
 
 #define bitOneMax       1700
 #define bitZeroMin      370
@@ -81,8 +92,8 @@ volatile unsigned char frameStatus, IrPulseCoun, ir_licznik, uchPowerON;
 volatile unsigned int uiPreData, IrData;
 volatile unsigned long ulKeyCodeTmp, ulKeyCode;
 volatile unsigned int uiSWDelay, uiIRDelay,uiTriac, uiKroki, uiNastawa, uiLedUpdate;
-u08 key_State_Speed;
 
+#include "simpleRtc.h"
 
 #ifdef	__cplusplus
 }

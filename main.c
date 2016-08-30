@@ -4,17 +4,11 @@
  *
  * Created on 21 lipiec 2016, 17:20
  */
-#define FCY 16000000UL
-#include <stdio.h>
-#include <stdlib.h>
-#include <libpic30.h>
-#include <Rtcc.h>
 
-#include <xc.h>
 #include"main.h"
 #define DEBUG__
 
-
+extern volatile unsigned int usecond;
 
 void systemInit(void);
 void turnOffAllDiode(void);
@@ -28,6 +22,7 @@ int main(void) {
     while (1) {
         IR_function();
         update_Diode();
+        updateTime();
     }
 }
 
@@ -81,14 +76,13 @@ void IR_function() {
 
 void __attribute__((interrupt,no_auto_psv)) _INT1Interrupt(void) // PowerSW
 {
-    uiSWDelay = 100;
+    uiSWDelay = 20;
     while (uiSWDelay);
-        if (!PORTDbits.RD1){
+        if (!POWER_SW){
             if (!uchPowerON){
                 uchPowerON = TURN_ON;
                 uiNastawa = SPEED_ONE;
-                LATBbits.LATB14 = 1;
-                LATBbits.LATB2 = 1;
+                POWER_LED = 1;
             } else {
                 uchPowerON = TURN_OFF;
                 uiNastawa = 0;
@@ -102,15 +96,15 @@ void __attribute__((interrupt,no_auto_psv)) _INT2Interrupt(void)    // SpeedSW
 {
     uiSWDelay = 20;
     while (uiSWDelay);
-    if (!PORTBbits.RB1) key_SPEED();
+    if (!SPEED_SW) key_SPEED();
     IFS1bits.INT2IF = 0; //wyczy?? flag? przerwania
 }
 #endif
 void __attribute__((interrupt,no_auto_psv)) _INT3Interrupt(void)    // SleepSW
 {
-    uiSWDelay = 100;
+    uiSWDelay = 20;
     while (uiSWDelay);
-    if (!PORTBbits.RB15) {
+    if (!SLEEP_SW) {
         key_SPEED();
     }
     IFS3bits.INT3IF = 0; //wyczy?? flag? przerwania
@@ -131,6 +125,7 @@ void __attribute__((interrupt,no_auto_psv)) _T3Interrupt(void)
     if (uiLedUpdate) --uiLedUpdate;
     if (uiKroki == uiTriac) TRIAC_ON;
     --uiKroki;
+    ++usecond;
     IFS0bits.T3IF = 0; //wyczy?? flag? przerwania
 }
 void __attribute__((interrupt,no_auto_psv)) _IC1Interrupt(void) {
@@ -183,6 +178,10 @@ void __attribute__((interrupt,no_auto_psv)) _IC1Interrupt(void) {
     }
     IFS0bits.IC1IF = 0;
 }
+/*void __attribute__((interrupt,no_auto_psv)) _RTCCInterrupt(void){
+    
+    IFS3bits.RTCIF = 0;
+}*/
 void systemInit(void){
     //    CLKDIVbits.RCDIV = 1;
     AD1PCFGL = 0xFFFF; // all as digital
@@ -199,6 +198,8 @@ void systemInit(void){
     //////     INT2    //////
     RPINR1bits.INT2R = 1;   // RP1
     INTCON2bits.INT2EP = 1;
+    IPC7bits.INT2IP = 3;
+    IFS1bits.INT2IF = 0;
     IEC1bits.INT2IE = 1;
 #endif
     //////     INT3    //////
@@ -211,7 +212,6 @@ void systemInit(void){
     //////     INT4    //////
     RPINR2bits.INT4R = 10;  // RP10
     INTCON2bits.INT4EP = 0; // positive edge
-//    IPC13bits.INT4IP = 5;   // priorytet przerwania, domyslnie jest 4
     IEC3bits.INT4IE = 1;
     //////////////////////////
 
@@ -238,16 +238,23 @@ void systemInit(void){
     //////// Input Capture ////////
     RPINR7bits.IC1R = 16;       // RP16
     IC1CON2bits.SYNCSEL = 0;    // no synchronization
-//    while (IC1CON1bits.ICBNE) uiCaptureValueICP[0] = IC1BUF;   // cleared buff
     IC1CON1bits.ICM = 1;        // capture every edge
     IC1CON1bits.ICTSEL = 4;     // Timer1 as select timer
-//    IC1CON1bits.ICI = 0;        // interrupt on every fourth capture event //// is not used
     IC1CON2bits.SYNCSEL = 0;   // synchronization ICP1
     IC1CON2bits.ICTRIG = 1;
     IC1CON2bits.TRIGSTAT = 1;
     IEC0bits.IC1IE = 1;         // turn on interrupt
     IFS0bits.IC1IF = 0;
-    ///////////////////////////////
+    /*///////////// RTCC ////////////////
+    IPC15bits.RTCIP = 3;    // change the priority interrupt
+    IFS3bits.RTCIF = 0;     // clear interrupt flag (these must be done)
+    IEC3bits.RTCIE = 0;     // turn off interrupt
+
+    RtccInitClock();
+    RtccWrOn();
+    RtccWriteAlrmTimeDate_v1(&RtccTimeDate);
+    
+    ///////////////////////////////*/
     turnOffAllDiode();
 }
 void turnOffAllDiode(void){
@@ -264,21 +271,12 @@ void key_SPEED() {
         switch (uiNastawa) {
             case SPEED_ONE:
                 uiNastawa = SPEED_THREE;
-//                LATBbits.LATB2 = 1;
-//                LATBbits.LATB4 = 1;
-//                LATBbits.LATB5 = 0;
                 break;
             case SPEED_THREE:
                 uiNastawa = SPEED_SEVEN;
-//                LATBbits.LATB2 = 1;
-//                LATBbits.LATB4 = 1;
-//                LATBbits.LATB5 = 1;
                 break;
             default:
                 uiNastawa = SPEED_ONE;
-//                LATBbits.LATB2 = 1;
-//                LATBbits.LATB4 = 0;
-//                LATBbits.LATB5 = 0;
                 break;
         }
     }
