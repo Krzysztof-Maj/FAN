@@ -17,11 +17,10 @@ extern "C" {
 #include <stdlib.h>
 #include <libpic30.h>
 #include <xc.h>
-
-typedef unsigned char u08;
-typedef unsigned int u16;
-
-
+#include "simpleRtc.h"
+#include "IR.h"
+#include "sysSwLed.h"
+    
 // CONFIG3
 #pragma config WPFP = WPFP511           // Write Protection Flash Page Segment Boundary (Highest Page (same as page 170))
 #pragma config WPDIS = WPDIS            // Segment Write Protection Disable bit (Segmented code protection disabled)
@@ -48,52 +47,6 @@ typedef unsigned int u16;
 #pragma config GWRP = OFF               // General Code Segment Write Protect (Writes to program memory are allowed)
 #pragma config GCP = OFF                // General Code Segment Code Protect (Code protection is disabled)
 #pragma config JTAGEN = OFF              // JTAG Port Enable (JTAG port is enabled)
-
-#define LICZBA_KROKOW   200
-#define TRIAC_OFF       LATFbits.LATF5 = 0
-#define TRIAC_ON        LATFbits.LATF5 = 1
-#define POWER_LED       LATBbits.LATB14
-
-#define POWER_SW        PORTDbits.RD1
-#define SPEED_SW        PORTBbits.RB1
-#define SLEEP_SW        PORTBbits.RB15
-
-#define bitOneMax       1700
-#define bitZeroMin      370
-
-#define frame_restart   0
-#define frame_ok        1
-#define frame_end       2
-#define frame_err       3
-
-#define TURN_OFF    0
-#define TURN_ON     1
-#define SPEED_ONE   40///////////////////
-#define SPEED_TWO   60
-#define SPEED_THREE 90/////////////////////
-#define SPEED_FOUR  110
-#define SPEED_FIFE  140
-#define SPEED_SIX   170
-#define SPEED_SEVEN 200//////////////////
-
-typedef struct {
-    volatile unsigned int *latch1;
-    volatile unsigned int *latch2;
-    volatile unsigned int *latch3;
-    unsigned int led1_pin;
-    unsigned int led2_pin;
-    unsigned int led3_pin;
-} sdiode;
-
-sdiode dSpeed = {&LATB, &LATB, &LATB, 2, 4, 5};
-sdiode dSleep = {&LATB, &LATB, &LATB, 7, 6, 0};
-
-volatile unsigned char frameStatus, IrPulseCoun, ir_licznik, uchPowerON;
-volatile unsigned int uiPreData, IrData;
-volatile unsigned long ulKeyCodeTmp, ulKeyCode;
-volatile unsigned int uiSWDelay, uiIRDelay,uiTriac, uiKroki, uiNastawa, uiLedUpdate;
-
-#include "simpleRtc.h"
 
 #ifdef	__cplusplus
 }
