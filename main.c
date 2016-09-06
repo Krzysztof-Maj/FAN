@@ -12,7 +12,7 @@ int main(void) {
     while (1) {
         IR_function();
         update_Diode();
-        updateTime();
+        time_Event();
     }
 }
 

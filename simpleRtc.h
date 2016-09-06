@@ -13,6 +13,8 @@ extern "C" {
 #endif
 
 enum wDay {Monday = 1, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday };
+typedef enum _BOOL { FALSE = 0, TRUE } BOOL;
+
 typedef struct {
     unsigned char second;
     unsigned char minute;
@@ -20,7 +22,15 @@ typedef struct {
     unsigned char wday;
 }rtcTimeWDay;
 
-void updateTime(void);
+typedef struct {
+    unsigned char gosleep:1;
+    unsigned char checksleep:1;
+    unsigned char wakeup:1;
+    unsigned char checkwakeup:1;
+    unsigned char rsvd:4;
+}timeFlags;
+
+void time_Event(void);
 
 #ifdef	__cplusplus
 }

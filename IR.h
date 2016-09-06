@@ -33,6 +33,11 @@ extern "C" {
 #define SPEED_SIX   170
 #define SPEED_SEVEN 200//////////////////
 
+#define IR_POWER        0x0D00BCB1
+#define IR_SPEED_UP     0x0D00111C
+#define IR_SPEED_DOWN   0x0D00E1EC
+#define IR_SLEEP        0x0D00E1EF
+
 void IR_function(void);
 
 #ifdef	__cplusplus

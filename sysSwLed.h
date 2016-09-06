@@ -24,6 +24,8 @@ typedef struct {
     unsigned int led3_pin;
 } sdiode;
 
+#define DEBUG__
+
 #define LICZBA_KROKOW   200
 #define TRIAC_OFF       LATFbits.LATF5 = 0
 #define TRIAC_ON        LATFbits.LATF5 = 1
@@ -33,11 +35,9 @@ typedef struct {
 #define SPEED_SW        PORTBbits.RB1
 #define SLEEP_SW        PORTBbits.RB15
 
-void turnOffAllDiode(void);
+//void turnOffAllDiode(void);
 void key_SPEED(void);
-void diode_u(u08 tmp, sdiode *tmpDiode );
-void diode_speed(void);
-void diode_slepp(void);
+
 void update_Diode(void);
 void systemInit(void);
 

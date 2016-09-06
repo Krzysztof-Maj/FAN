@@ -1,24 +1,17 @@
 #include "sysSwLed.h"
+#include "simpleRtc.h"
 
-volatile unsigned char uchPowerON;
 volatile unsigned int uiSWDelay,uiTriac, uiKroki, uiNastawa, uiLedUpdate;
 
 extern volatile unsigned int uiIRDelay, usecond;
+extern rtcTimeWDay RtcTimeWDay, sleepTime;
+extern timeFlags TimeFlags;
 
 sdiode dSpeed = {&LATB, &LATB, &LATB, 2, 4, 5};
 sdiode dSleep = {&LATB, &LATB, &LATB, 7, 6, 0};
 
-void turnOffAllDiode(void){
-    LATBbits.LATB14 = 0;    // power on diode
-    LATBbits.LATB2 = 0;     // first speed diode
-    LATBbits.LATB4 = 0;    // second speed diode
-    LATBbits.LATB5 = 0;    // third speed diode
-    LATBbits.LATB7 = 0;    // first sleep diode
-    LATBbits.LATB6 = 0;    // second sleep diode
-    LATBbits.LATB0 = 0;    // third sleep diode
-}
 void key_SPEED() {
-    if (uchPowerON == TURN_ON) {
+    if (uiNastawa) {
         switch (uiNastawa) {
             case SPEED_ONE:
                 uiNastawa = SPEED_THREE;
@@ -40,7 +33,7 @@ void diode_u(u08 tmp, sdiode *tmpDiode ){
     if (tmp & 0x04) *(tmpDiode->latch3) |= 1<<tmpDiode->led3_pin;
     else *(tmpDiode->latch3) &= ~(1<<tmpDiode->led3_pin);
 }
-void diode_speed(void){
+void diode_Speed(void){
     unsigned int tmp;
     if (uiNastawa<SPEED_ONE) tmp = 0;
     else if (uiNastawa<SPEED_TWO) tmp = 1;
@@ -52,14 +45,25 @@ void diode_speed(void){
     else tmp = 7;
     diode_u(tmp, &dSpeed);
 }
-void diode_slepp(void){
-
+void diode_Slepp(void){
+    unsigned char tmp;
+    if (TimeFlags.gosleep ){
+        signed int minutes;
+        if (RtcTimeWDay.hour < sleepTime.hour || RtcTimeWDay.hour == sleepTime.hour)
+            minutes =  (sleepTime.hour - RtcTimeWDay.hour) * 60;
+        else minutes = (24 - RtcTimeWDay.hour + sleepTime.hour) * 60;
+        minutes += (sleepTime.minute - RtcTimeWDay.minute);
+        tmp = (minutes / 60) + 1;
+    } else tmp = 0;
+    diode_u(tmp, &dSleep);
 }
 void update_Diode(){
     if (!uiLedUpdate) {
-        diode_speed();
-        diode_slepp();
-        uiLedUpdate = 1000; // 50 ms
+        if (!uiNastawa) POWER_LED = TURN_OFF;
+        else POWER_LED = TURN_ON;
+        diode_Speed();
+        diode_Slepp();
+        uiLedUpdate = 500; // 25 ms
     }
 }
 void systemInit(void){
@@ -135,21 +139,17 @@ void systemInit(void){
     RtccWriteAlrmTimeDate_v1(&RtccTimeDate);
 
     ///////////////////////////////*/
-    turnOffAllDiode();
+//    turnOffAllDiode();
 }
 void __attribute__((interrupt,no_auto_psv)) _INT1Interrupt(void) // PowerSW
 {
     uiSWDelay = 20;
     while (uiSWDelay);
         if (!POWER_SW){
-            if (!uchPowerON){
-                uchPowerON = TURN_ON;
+            if (!uiNastawa){
                 uiNastawa = SPEED_ONE;
-                POWER_LED = 1;
             } else {
-                uchPowerON = TURN_OFF;
                 uiNastawa = 0;
-                turnOffAllDiode();
             }
         }
     IFS1bits.INT1IF = 0; //wyczy?? flag? przerwania
@@ -191,8 +191,4 @@ void __attribute__((interrupt,no_auto_psv)) _T3Interrupt(void)
     IFS0bits.T3IF = 0; //wyczy?? flag? przerwania
 }
 
-/*void __attribute__((interrupt,no_auto_psv)) _RTCCInterrupt(void){
-
-    IFS3bits.RTCIF = 0;
-}*/
 
