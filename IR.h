@@ -25,18 +25,19 @@ extern "C" {
 
 #define TURN_OFF    0
 #define TURN_ON     1
-#define SPEED_ONE   40///////////////////
-#define SPEED_TWO   60
-#define SPEED_THREE 90/////////////////////
-#define SPEED_FOUR  110
-#define SPEED_FIFE  140
-#define SPEED_SIX   170
+#define SPEED_ONE   49///////////////////
+#define SPEED_TWO   72
+#define SPEED_THREE 91/////////////////////
+#define SPEED_FOUR  109
+#define SPEED_FIFE  128
+#define SPEED_SIX   151
 #define SPEED_SEVEN 200//////////////////
 
 #define IR_POWER        0x0D00BCB1
 #define IR_SPEED_UP     0x0D00111C
 #define IR_SPEED_DOWN   0x0D00E1EC
-#define IR_SLEEP        0x0D00E1EF
+#define IR_SLEEP_UP     0x0D00818C
+#define IR_SLEEP_DOWN   0x0D004944
 
 void IR_function(void);
 

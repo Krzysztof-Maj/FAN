@@ -10,7 +10,7 @@ extern timeFlags TimeFlags;
 sdiode dSpeed = {&LATB, &LATB, &LATB, 2, 4, 5};
 sdiode dSleep = {&LATB, &LATB, &LATB, 7, 6, 0};
 
-void key_SPEED() {
+static void key_SPEED() {
     if (uiNastawa) {
         switch (uiNastawa) {
             case SPEED_ONE:
@@ -25,7 +25,7 @@ void key_SPEED() {
         }
     }
 }
-void diode_u(u08 tmp, sdiode *tmpDiode ){
+static void diode_u(u08 tmp, sdiode *tmpDiode ){
     if (tmp & 0x01) *(tmpDiode->latch1) |= 1<<tmpDiode->led1_pin;
     else *(tmpDiode->latch1) &= ~(1<<tmpDiode->led1_pin);
     if (tmp & 0x02) *(tmpDiode->latch2) |= 1<<tmpDiode->led2_pin;
@@ -33,7 +33,7 @@ void diode_u(u08 tmp, sdiode *tmpDiode ){
     if (tmp & 0x04) *(tmpDiode->latch3) |= 1<<tmpDiode->led3_pin;
     else *(tmpDiode->latch3) &= ~(1<<tmpDiode->led3_pin);
 }
-void diode_Speed(void){
+static void diode_Speed(void){
     unsigned int tmp;
     if (uiNastawa<SPEED_ONE) tmp = 0;
     else if (uiNastawa<SPEED_TWO) tmp = 1;
@@ -45,7 +45,7 @@ void diode_Speed(void){
     else tmp = 7;
     diode_u(tmp, &dSpeed);
 }
-void diode_Slepp(void){
+static void diode_Slepp(void){
     unsigned char tmp;
     if (TimeFlags.gosleep ){
         signed int minutes;
@@ -129,17 +129,7 @@ void systemInit(void){
     IC1CON2bits.TRIGSTAT = 1;
     IEC0bits.IC1IE = 1;         // turn on interrupt
     IFS0bits.IC1IF = 0;
-    /*///////////// RTCC ////////////////
-    IPC15bits.RTCIP = 3;    // change the priority interrupt
-    IFS3bits.RTCIF = 0;     // clear interrupt flag (these must be done)
-    IEC3bits.RTCIE = 0;     // turn off interrupt
 
-    RtccInitClock();
-    RtccWrOn();
-    RtccWriteAlrmTimeDate_v1(&RtccTimeDate);
-
-    ///////////////////////////////*/
-//    turnOffAllDiode();
 }
 void __attribute__((interrupt,no_auto_psv)) _INT1Interrupt(void) // PowerSW
 {
@@ -149,7 +139,8 @@ void __attribute__((interrupt,no_auto_psv)) _INT1Interrupt(void) // PowerSW
             if (!uiNastawa){
                 uiNastawa = SPEED_ONE;
             } else {
-                uiNastawa = 0;
+                uiNastawa = TURN_OFF;
+                TimeFlags.gosleep = TURN_OFF;
             }
         }
     IFS1bits.INT1IF = 0; //wyczy?? flag? przerwania

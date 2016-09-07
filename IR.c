@@ -1,42 +1,45 @@
 #include "IR.h"
+#include "simpleRtc.h"
 
 volatile unsigned int uiPreData, IrData, uiIRDelay;
 volatile unsigned char frameStatus, IrPulseCoun, ir_licznik;
 volatile unsigned long ulKeyCodeTmp, ulKeyCode;
 extern volatile unsigned int uiNastawa;
+extern rtcTimeWDay RtcTimeWDay, sleepTime;
+extern timeFlags TimeFlags;
 
+static void ir_power(void);
+static void ir_speed_up(void);
+static void ir_speed_down(void);
+static void ir_sleep_up(void);
+static void ir_sleep_down(void);
 
 void IR_function() {
     if (!uiIRDelay) {
         if (ulKeyCode) {
             switch (ulKeyCode) {
                 case IR_POWER:
-                    if (!uiNastawa) {
-                        uiNastawa = SPEED_ONE;
-                    } else {
-                        uiNastawa = TURN_OFF;
-                    }
-                    ulKeyCode = 0;
-                    uiIRDelay = 5000;
+                    ir_power();
+                    uiIRDelay = 10000;
                     break;
                 case IR_SPEED_UP:
-                    if (!uiNastawa) {
-                        uiNastawa = SPEED_ONE;
-                    } else {
-                        uiNastawa += 10;
-                        if (uiNastawa > 200) uiNastawa = 200;
-                    }
-                    ulKeyCode = 0;
-                    uiIRDelay = 2500;
+                    ir_speed_up();
+                    uiIRDelay = 5000;
                     break;
                 case IR_SPEED_DOWN:
-                    if (uiNastawa) {
-                        uiNastawa -= 10;
-                        if (uiNastawa < 10) uiNastawa = 10;
-                    }
-                    ulKeyCode = 0;
-                    uiIRDelay = 2500;
+                    ir_speed_down();
+                    uiIRDelay = 5000;
                     break;
+                case IR_SLEEP_UP:
+                    ir_sleep_up();
+                    uiIRDelay = 5000;
+                    break;
+                case IR_SLEEP_DOWN:
+                    ir_sleep_down();
+                    uiIRDelay = 5000;
+                    break;
+                default:
+                    ulKeyCode = 0;
             }
         }
         if (uiPreData == 0x4014) {
@@ -91,4 +94,67 @@ void __attribute__((interrupt,no_auto_psv)) _IC1Interrupt(void) {
         ir_licznik = 0;
     }
     IFS0bits.IC1IF = 0;
+}
+static void ir_power(void){
+    if (!uiNastawa) {
+        uiNastawa = SPEED_ONE;
+    } else {
+        uiNastawa = TURN_OFF;
+        TimeFlags.gosleep = TURN_OFF;
+    }
+    ulKeyCode = 0;
+}
+static void ir_speed_up(void){
+    if (uiNastawa) {
+        if (uiNastawa < SPEED_ONE) uiNastawa = SPEED_ONE;
+        else if (uiNastawa < SPEED_TWO) uiNastawa = SPEED_TWO;
+        else if (uiNastawa < SPEED_THREE) uiNastawa = SPEED_THREE;
+        else if (uiNastawa < SPEED_FOUR) uiNastawa = SPEED_FOUR;
+        else if (uiNastawa < SPEED_FIFE) uiNastawa = SPEED_FIFE;
+        else if (uiNastawa < SPEED_SIX) uiNastawa = SPEED_SIX;
+        else uiNastawa = SPEED_SEVEN;
+    }
+    ulKeyCode = 0;
+}
+static void ir_speed_down(void) {
+    if (uiNastawa) {
+        if (uiNastawa > SPEED_SIX) uiNastawa = SPEED_SIX;
+        else if (uiNastawa > SPEED_FIFE) uiNastawa = SPEED_FIFE;
+        else if (uiNastawa > SPEED_FOUR) uiNastawa = SPEED_FOUR;
+        else if (uiNastawa > SPEED_THREE) uiNastawa = SPEED_THREE;
+        else if (uiNastawa > SPEED_TWO) uiNastawa = SPEED_TWO;
+        else uiNastawa = SPEED_ONE;
+    }
+    ulKeyCode = 0;
+}
+static unsigned int give_minutes (rtcTimeWDay *basic, rtcTimeWDay *checked){
+    int minutes;
+    if (basic->hour < checked->hour || basic->hour == checked->hour)
+            minutes =  (checked->hour - basic->hour) * 60;
+    else minutes = (24 - basic->hour + checked->hour) * 60;
+        minutes += (checked->minute - basic->minute);
+        if (minutes > 0) return minutes;
+        else return 0;
+}
+static void add_minutes (unsigned int minutes, rtcTimeWDay *modify){
+    unsigned char tmp, min;
+    tmp = minutes / 60;
+    min = minutes%60;
+    modify->hour += tmp;
+    if (modify->minute > 59) {
+        modify->minute -= 60;
+        ++(modify->hour);
+    }
+    if (modify->hour > 23) modify->hour -=24;
+    modify->minute += min;
+}
+static void ir_sleep_up(void){
+    if (TimeFlags.gosleep){
+
+    } else {
+
+    }
+}
+static void ir_sleep_down(void){
+    
 }

@@ -35,9 +35,6 @@ typedef struct {
 #define SPEED_SW        PORTBbits.RB1
 #define SLEEP_SW        PORTBbits.RB15
 
-//void turnOffAllDiode(void);
-void key_SPEED(void);
-
 void update_Diode(void);
 void systemInit(void);
 
