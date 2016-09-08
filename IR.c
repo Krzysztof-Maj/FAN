@@ -20,22 +20,27 @@ void IR_function() {
             switch (ulKeyCode) {
                 case IR_POWER:
                     ir_power();
+                    ulKeyCode = 0;
                     uiIRDelay = 10000;
                     break;
                 case IR_SPEED_UP:
                     ir_speed_up();
+                    ulKeyCode = 0;
                     uiIRDelay = 5000;
                     break;
                 case IR_SPEED_DOWN:
                     ir_speed_down();
+                    ulKeyCode = 0;
                     uiIRDelay = 5000;
                     break;
                 case IR_SLEEP_UP:
                     ir_sleep_up();
+                    ulKeyCode = 0;
                     uiIRDelay = 5000;
                     break;
                 case IR_SLEEP_DOWN:
                     ir_sleep_down();
+                    ulKeyCode = 0;
                     uiIRDelay = 5000;
                     break;
                 default:
@@ -102,7 +107,6 @@ static void ir_power(void){
         uiNastawa = TURN_OFF;
         TimeFlags.gosleep = TURN_OFF;
     }
-    ulKeyCode = 0;
 }
 static void ir_speed_up(void){
     if (uiNastawa) {
@@ -114,7 +118,6 @@ static void ir_speed_up(void){
         else if (uiNastawa < SPEED_SIX) uiNastawa = SPEED_SIX;
         else uiNastawa = SPEED_SEVEN;
     }
-    ulKeyCode = 0;
 }
 static void ir_speed_down(void) {
     if (uiNastawa) {
@@ -125,15 +128,14 @@ static void ir_speed_down(void) {
         else if (uiNastawa > SPEED_TWO) uiNastawa = SPEED_TWO;
         else uiNastawa = SPEED_ONE;
     }
-    ulKeyCode = 0;
 }
 static unsigned int give_minutes (rtcTimeWDay *basic, rtcTimeWDay *checked){
     int minutes;
     if (basic->hour < checked->hour || basic->hour == checked->hour)
             minutes =  (checked->hour - basic->hour) * 60;
     else minutes = (24 - basic->hour + checked->hour) * 60;
-        minutes += (checked->minute - basic->minute);
-        if (minutes > 0) return minutes;
+        minutes += (checked->minute - basic->minute);       // if hour is eg basic->17:56 , 
+        if (minutes > 0) return minutes;    // checked->17:34, value will be negative
         else return 0;
 }
 static void add_minutes (unsigned int minutes, rtcTimeWDay *modify){
@@ -141,20 +143,47 @@ static void add_minutes (unsigned int minutes, rtcTimeWDay *modify){
     tmp = minutes / 60;
     min = minutes%60;
     modify->hour += tmp;
+    modify->minute += min;
     if (modify->minute > 59) {
         modify->minute -= 60;
         ++(modify->hour);
     }
     if (modify->hour > 23) modify->hour -=24;
-    modify->minute += min;
+}
+static void subtract_minutes (unsigned int minutes, rtcTimeWDay *modify){
+    unsigned char tmp, min;
+    tmp = minutes / 60;
+    min = minutes%60;
+    if (modify->minute >= min) modify->minute -=min;
+    else {
+        modify->minute += (60-min);
+        ++tmp;
+    }
+    if (modify->hour >= tmp) modify->hour -= tmp;
+    else    modify->hour += (24-tmp);
 }
 static void ir_sleep_up(void){
-    if (TimeFlags.gosleep){
-
-    } else {
-
+    unsigned int time;
+    if (uiNastawa){
+        if (TimeFlags.gosleep){
+            time = give_minutes(&RtcTimeWDay,&sleepTime);
+            if (time < 181) add_minutes(1, &sleepTime);
+            else {
+                time -=180;
+                add_minutes(30 - time, &sleepTime);
+            }
+        } else {
+            sleepTime = RtcTimeWDay;
+            add_minutes(1, &sleepTime);
+            TimeFlags.gosleep = 1;
+        }
     }
 }
 static void ir_sleep_down(void){
-    
+    unsigned int time;
+    if (TimeFlags.gosleep){
+        time = give_minutes(&RtcTimeWDay, &sleepTime);
+        if (time < 30) TimeFlags.gosleep = 0;
+        else subtract_minutes(30, &sleepTime);
+    }
 }

@@ -53,7 +53,8 @@ static void diode_Slepp(void){
             minutes =  (sleepTime.hour - RtcTimeWDay.hour) * 60;
         else minutes = (24 - RtcTimeWDay.hour + sleepTime.hour) * 60;
         minutes += (sleepTime.minute - RtcTimeWDay.minute);
-        tmp = (minutes / 60) + 1;
+        if (minutes > 209)    tmp = 7;   // max time 210 min
+        else tmp = (minutes / 30) + 1;;
     } else tmp = 0;
     diode_u(tmp, &dSleep);
 }
