@@ -14,6 +14,7 @@ extern "C" {
 
 #include <xc.h>
 #include "sysSwLed.h"
+#include "simpleRtc.h"
 
 #define bitOneMax       1700
 #define bitZeroMin      370
@@ -40,6 +41,9 @@ extern "C" {
 #define IR_SLEEP_DOWN   0x0D004944
 
 void IR_function(void);
+unsigned int give_minutes (rtcTimeWDay *basic, rtcTimeWDay *checked);
+void add_minutes (unsigned int minutes, rtcTimeWDay *modify);
+
 
 #ifdef	__cplusplus
 }

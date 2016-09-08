@@ -10,7 +10,7 @@ extern timeFlags TimeFlags;
 sdiode dSpeed = {&LATB, &LATB, &LATB, 2, 4, 5};
 sdiode dSleep = {&LATB, &LATB, &LATB, 7, 6, 0};
 
-static void key_SPEED() {
+static void key_speed() {
     if (uiNastawa) {
         switch (uiNastawa) {
             case SPEED_ONE:
@@ -54,7 +54,8 @@ static void diode_Slepp(void){
         else minutes = (24 - RtcTimeWDay.hour + sleepTime.hour) * 60;
         minutes += (sleepTime.minute - RtcTimeWDay.minute);
         if (minutes > 209)    tmp = 7;   // max time 210 min
-        else tmp = (minutes / 30) + 1;;
+        else if (tmp%30) tmp = (minutes / 30);
+            else tmp = (minutes / 30) + 1;
     } else tmp = 0;
     diode_u(tmp, &dSleep);
 }
@@ -65,6 +66,24 @@ void update_Diode(){
         diode_Speed();
         diode_Slepp();
         uiLedUpdate = 500; // 25 ms
+    }
+}
+static void key_sleep(void){
+    unsigned int time;
+    if (uiNastawa){
+        if (TimeFlags.gosleep){
+            time = give_minutes(&RtcTimeWDay,&sleepTime);
+            if (time == 210) TimeFlags.gosleep = 0;
+            if (time < 181) add_minutes(30, &sleepTime);
+            else {
+                time -=180;
+                add_minutes(30 - time, &sleepTime);
+            }
+        } else {
+            sleepTime = RtcTimeWDay;
+            add_minutes(30, &sleepTime);
+            TimeFlags.gosleep = 1;
+        }
     }
 }
 void systemInit(void){
@@ -151,7 +170,7 @@ void __attribute__((interrupt,no_auto_psv)) _INT2Interrupt(void)    // SpeedSW
 {
     uiSWDelay = 20;
     while (uiSWDelay);
-    if (!SPEED_SW) key_SPEED();
+    if (!SPEED_SW) key_speed();
     IFS1bits.INT2IF = 0; //wyczy?? flag? przerwania
 }
 #endif
@@ -159,9 +178,7 @@ void __attribute__((interrupt,no_auto_psv)) _INT3Interrupt(void)    // SleepSW
 {
     uiSWDelay = 20;
     while (uiSWDelay);
-    if (!SLEEP_SW) {
-        key_SPEED();
-    }
+    if (!SLEEP_SW) key_sleep();
     IFS3bits.INT3IF = 0; //wyczy?? flag? przerwania
 }
 void __attribute__((interrupt,no_auto_psv)) _INT4Interrupt(void)

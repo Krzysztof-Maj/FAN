@@ -1,5 +1,4 @@
 #include "IR.h"
-#include "simpleRtc.h"
 
 volatile unsigned int uiPreData, IrData, uiIRDelay;
 volatile unsigned char frameStatus, IrPulseCoun, ir_licznik;
@@ -129,7 +128,7 @@ static void ir_speed_down(void) {
         else uiNastawa = SPEED_ONE;
     }
 }
-static unsigned int give_minutes (rtcTimeWDay *basic, rtcTimeWDay *checked){
+unsigned int give_minutes (rtcTimeWDay *basic, rtcTimeWDay *checked){
     int minutes;
     if (basic->hour < checked->hour || basic->hour == checked->hour)
             minutes =  (checked->hour - basic->hour) * 60;
@@ -138,7 +137,7 @@ static unsigned int give_minutes (rtcTimeWDay *basic, rtcTimeWDay *checked){
         if (minutes > 0) return minutes;    // checked->17:34, value will be negative
         else return 0;
 }
-static void add_minutes (unsigned int minutes, rtcTimeWDay *modify){
+void add_minutes (unsigned int minutes, rtcTimeWDay *modify){
     unsigned char tmp, min;
     tmp = minutes / 60;
     min = minutes%60;
