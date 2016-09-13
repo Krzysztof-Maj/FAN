@@ -166,14 +166,14 @@ static void ir_sleep_up(void){
     if (uiNastawa){
         if (TimeFlags.gosleep){
             time = give_minutes(&RtcTimeWDay,&sleepTime);
-            if (time < 181) add_minutes(1, &sleepTime);
+            if (time < 181) add_minutes(30, &sleepTime);
             else {
                 time -=180;
                 add_minutes(30 - time, &sleepTime);
             }
         } else {
             sleepTime = RtcTimeWDay;
-            add_minutes(1, &sleepTime);
+            add_minutes(30, &sleepTime);
             TimeFlags.gosleep = 1;
         }
     }

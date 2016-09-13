@@ -54,8 +54,8 @@ static void diode_Slepp(void){
         else minutes = (24 - RtcTimeWDay.hour + sleepTime.hour) * 60;
         minutes += (sleepTime.minute - RtcTimeWDay.minute);
         if (minutes > 209)    tmp = 7;   // max time 210 min
-        else if (tmp%30) tmp = (minutes / 30);
-            else tmp = (minutes / 30) + 1;
+        else if (!tmp%30) tmp = (minutes / 30);
+        else tmp = (minutes / 30) + 1;
     } else tmp = 0;
     diode_u(tmp, &dSleep);
 }
@@ -91,7 +91,8 @@ void systemInit(void){
     AD1PCFGL = 0xFFFF; // all as digital
     TRISB = ~(0b0100000011110101);  // diody
     TRISFbits.TRISF5 = 0;   // triac kierunek wyjsciowy
-
+    // Unlock Registers
+    __builtin_write_OSCCONL(OSCCON & 0xBF);     // page 140 in datasheet
     //////     INT1    //////
     RPINR0bits.INT1R = 24;  // RP24
     INTCON2bits.INT1EP = 1;
@@ -118,7 +119,6 @@ void systemInit(void){
     INTCON2bits.INT4EP = 0; // positive edge
     IEC3bits.INT4IE = 1;
     //////////////////////////
-
 
     //////     TIMER 2/3    //////
     T2CONbits.T32 = 1;      // 32 bits mode
@@ -149,7 +149,21 @@ void systemInit(void){
     IC1CON2bits.TRIGSTAT = 1;
     IEC0bits.IC1IE = 1;         // turn on interrupt
     IFS0bits.IC1IF = 0;
-
+    /////////// UART1 ///////////
+    RPINR18bits.U1RXR = 8;      // RP8 as RX
+    RPOR4bits.RP9R = 3;         // RP9 as TX
+    U1BRG = 51;                 // Baud rate 19200
+    U1STAbits.UTXISEL0 = 0;     // the UxTXIF is set when a character is transferred from the transmit
+                                // buffer to the Transmit Shift register (UxTSR). This implies at
+    U1STAbits.UTXISEL1 = 0;     // least one location is empty in the transmit buffer.
+    U1STAbits.URXISEL = 0;
+    IFS0bits.U1RXIF = 0;
+    IFS0bits.U1TXIF = 0;
+    IEC0bits.U1RXIE = 1;
+    IEC0bits.U1TXIE = 1;
+    U1MODEbits.UARTEN = 1;
+    // Lock Registers
+    __builtin_write_OSCCONL(OSCCON | 0x40);// page 140 in datasheet
 }
 void __attribute__((interrupt,no_auto_psv)) _INT1Interrupt(void) // PowerSW
 {
