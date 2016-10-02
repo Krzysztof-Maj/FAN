@@ -6,13 +6,15 @@
  */
 #include"main.h"
 
+
 int main(void) {
-    systemInit();
+    system_Init();
 
     while (1) {
         IR_function();
         update_Diode();
         time_Event();
+        BT_uart();
     }
 }
 

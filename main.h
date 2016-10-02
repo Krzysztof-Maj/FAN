@@ -20,6 +20,7 @@ extern "C" {
 #include "simpleRtc.h"
 #include "IR.h"
 #include "sysSwLed.h"
+#include "bt_uart.h"
     
 // CONFIG3
 #pragma config WPFP = WPFP511           // Write Protection Flash Page Segment Boundary (Highest Page (same as page 170))

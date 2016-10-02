@@ -24,7 +24,7 @@ typedef struct {
     unsigned int led3_pin;
 } sdiode;
 
-#define DEBUG__
+//#define DEBUG__
 
 #define LICZBA_KROKOW   200
 #define TRIAC_OFF       LATFbits.LATF5 = 0
@@ -36,7 +36,7 @@ typedef struct {
 #define SLEEP_SW        PORTBbits.RB15
 
 void update_Diode(void);
-void systemInit(void);
+void system_Init(void);
 
 #ifdef	__cplusplus
 }

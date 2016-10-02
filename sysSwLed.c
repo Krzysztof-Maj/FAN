@@ -10,6 +10,7 @@ extern timeFlags TimeFlags;
 sdiode dSpeed = {&LATB, &LATB, &LATB, 2, 4, 5};
 sdiode dSleep = {&LATB, &LATB, &LATB, 7, 6, 0};
 
+#ifndef DEBUG__
 static void key_speed() {
     if (uiNastawa) {
         switch (uiNastawa) {
@@ -25,6 +26,7 @@ static void key_speed() {
         }
     }
 }
+#endif
 static void diode_u(u08 tmp, sdiode *tmpDiode ){
     if (tmp & 0x01) *(tmpDiode->latch1) |= 1<<tmpDiode->led1_pin;
     else *(tmpDiode->latch1) &= ~(1<<tmpDiode->led1_pin);
@@ -46,16 +48,16 @@ static void diode_Speed(void){
     diode_u(tmp, &dSpeed);
 }
 static void diode_Slepp(void){
-    unsigned char tmp;
+    unsigned char tmp = 0;
     if (TimeFlags.gosleep ){
         signed int minutes;
         if (RtcTimeWDay.hour < sleepTime.hour || RtcTimeWDay.hour == sleepTime.hour)
             minutes =  (sleepTime.hour - RtcTimeWDay.hour) * 60;
         else minutes = (24 - RtcTimeWDay.hour + sleepTime.hour) * 60;
         minutes += (sleepTime.minute - RtcTimeWDay.minute);
-        if (minutes > 209)    tmp = 7;   // max time 210 min
-        else if (!tmp%30) tmp = (minutes / 30);
-        else tmp = (minutes / 30) + 1;
+        if (minutes > 180)    tmp = 7;   // max time 210 min
+        else if (minutes %30) tmp = (minutes / 30) + 1;
+        else tmp = (minutes / 30);
     } else tmp = 0;
     diode_u(tmp, &dSleep);
 }
@@ -73,8 +75,12 @@ static void key_sleep(void){
     if (uiNastawa){
         if (TimeFlags.gosleep){
             time = give_minutes(&RtcTimeWDay,&sleepTime);
-            if (time == 210) TimeFlags.gosleep = 0;
-            if (time < 181) add_minutes(30, &sleepTime);
+            if (time == 210) {
+                TimeFlags.gosleep = 0;
+            }
+            if (time < 181){
+                add_minutes(30, &sleepTime);
+            }
             else {
                 time -=180;
                 add_minutes(30 - time, &sleepTime);
@@ -86,7 +92,7 @@ static void key_sleep(void){
         }
     }
 }
-void systemInit(void){
+void system_Init(void){
     //    CLKDIVbits.RCDIV = 1;
     AD1PCFGL = 0xFFFF; // all as digital
     TRISB = ~(0b0100000011110101);  // diody
@@ -162,6 +168,7 @@ void systemInit(void){
     IEC0bits.U1RXIE = 1;
     IEC0bits.U1TXIE = 1;
     U1MODEbits.UARTEN = 1;
+    U1STAbits.UTXEN = 1;
     // Lock Registers
     __builtin_write_OSCCONL(OSCCON | 0x40);// page 140 in datasheet
 }
